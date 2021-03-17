@@ -1,6 +1,7 @@
 import {take, put, call, apply, delay, fork, takeLatest, cancel} from 'redux-saga/effects'
 import {eventChannel} from 'redux-saga'
-import {updateBook, createBook} from '../../features/counter/counterSlice';
+import {updateBook, createBook, symbol as symbolAction } from '../../features/counter/counterSlice';
+import {SYMBOLS} from "./types";
 
 // this function creates an event channel from a given socket
 // Setup subscription to incoming `ping` events
@@ -34,47 +35,68 @@ function createSocketChannel(socket) {
         return unsubscribe
     })
 }
-function* watchParam(socket, socketChannel) {
+/*function* watchParam(socket, socketChannel) {
     let wb = yield fork(watchBooks, socketChannel);
     socket.send(JSON.stringify(defaultParams));
     while (true) {
         const params = yield take('cp');
         yield cancel(wb);
+        socket.close();
+        socketChannel.close();
+        socket = yield call(createWebSocketConnection);
+        socketChannel = yield call(createSocketChannel, socket);
         socket.send(JSON.stringify({
             ...defaultParams,
-            prec:'P2'
+            symbol:'tLTCUSD'
         }));
         wb = yield fork(watchBooks, socketChannel);
     }
-}
+}*/
 export default function* saga() {
-    const socket = yield call(createWebSocketConnection);
-    const socketChannel = yield call(createSocketChannel, socket);
-    yield call(watchParam,socket, socketChannel);
+    let symbol = SYMBOLS.BTC;
+    let socket = yield call(createWebSocketConnection);
+    let socketChannel = yield call(createSocketChannel, socket);
+    let wb = yield fork(watchBooks, socketChannel);
+    socket.send(JSON.stringify(defaultParams));
+    while (true) {
+        yield take('cp');
+        symbol = symbol === SYMBOLS.BTC ? SYMBOLS.LTC : SYMBOLS.BTC;
+        yield cancel(wb);
+        socket.close();
+        socketChannel.close();
+        socket = yield call(createWebSocketConnection);
+        socketChannel = yield call(createSocketChannel, socket);
+        socket.send(JSON.stringify({
+            ...defaultParams,
+            symbol
+        }));
+        wb = yield fork(watchBooks, socketChannel);
+        yield put(symbolAction(symbol))
+    }
 }
 function* watchBooks(socketChannel) {
     // var bookReceived = false;
     // yield call(getSnapshot, socket)
-    while (true) {
-        try {
-            // An error from socketChannel will cause the saga jump to the catch block
-            const payload = yield take(socketChannel);
-            if (!payload.event) {
-                if (payload[1][0][0]) {
-                    yield put(createBook(payload[1]));
-                    // bookReceived = true;
-                } else {
-                    yield put(updateBook(payload[1]))
+        while (true) {
+            try {
+                // An error from socketChannel will cause the saga jump to the catch block
+                const payload = yield take(socketChannel);
+                if (!payload.event) {
+                    if (payload[1][0][0]) {
+                        yield put(createBook(payload[1]));
+                        // bookReceived = true;
+                    } else {
+                        yield put(updateBook(payload[1]))
+                    }
                 }
+                // yield fork(pong, socket)
+            } catch (err) {
+                console.error('socket error:', err)
+                // socketChannel is still open in catch block
+                // if we want end the socketChannel, we need close it explicitly
+                // socketChannel.close()
             }
-            // yield fork(pong, socket)
-        } catch (err) {
-            console.error('socket error:', err)
-            // socketChannel is still open in catch block
-            // if we want end the socketChannel, we need close it explicitly
-            // socketChannel.close()
         }
-    }
 }
 
 const defaultParams = {

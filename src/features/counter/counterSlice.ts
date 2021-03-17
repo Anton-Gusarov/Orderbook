@@ -1,26 +1,28 @@
 import {createAction, createSlice, PayloadAction} from '@reduxjs/toolkit';
-import { RootState } from '../../app/store';
-import {stat} from "fs";
+import { SYMBOLS } from '../../app/sagas/types';
+
 type Chunk = [
     number, number, number
 ]
 export type CounterState = {
   bid: any[],
-  ask: any[]
+  ask: any[],
+  symbol: SYMBOLS
 }
 
 const initialState: CounterState = {
   bid: [],
-  ask: []
+  ask: [],
+  symbol: SYMBOLS.BTC
 }
-function processChunk(bid, ask, chunk) {
 
-  return [bid, ask];
-}
 export const counterSlice = createSlice({
   name: 'book',
   initialState,
   reducers: {
+    symbol: (state, data) =>{
+      state.symbol = data.payload;
+    },
     createBook: (state: CounterState, data: PayloadAction<any>) => {
       const [bid, ask] = data.payload.reduce(( [bid, ask], chunk )=>{
         if (chunk[2]<0) ask.push(chunk); else bid.push(chunk);
@@ -53,7 +55,7 @@ export const counterSlice = createSlice({
   },
 })
 
-export const { createBook, updateBook } = counterSlice.actions;
+export const { createBook, updateBook, symbol } = counterSlice.actions;
 
 // The function below is called a thunk and allows us to perform async logic. It
 // can be dispatched like a regular action: `dispatch(incrementAsync(10))`. This
