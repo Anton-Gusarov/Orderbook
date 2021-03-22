@@ -6,7 +6,7 @@ import App from './App';
 import { expectSaga } from 'redux-saga-test-plan';
 import { put } from 'redux-saga/effects';
 import saga from './app/sagas/fetch'
-import reducer, {incrementAsync} from './features/counter/counterSlice'
+import reducer, {incrementAsync} from './features/book/counterSlice'
 const r = function (state, action) {
     console.log('wef')
     return reducer(state, action)

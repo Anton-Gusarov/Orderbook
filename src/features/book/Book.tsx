@@ -1,15 +1,9 @@
-import React, { useState } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import {
-    CounterState
+import React from 'react';
+import { useSelector } from 'react-redux';
+import {BookState, RootState} from "../../app/sagas/types";
 
-} from './counterSlice';
-import styles from './Counter.module.css';
-import {RootState} from '../../app/store'
-
-export function Counter() {
-  // @ts-ignore
-    const {bid, ask}: CounterState = useSelector(state => state.book);
+export function Book() {
+    const {bid, ask} = useSelector<RootState, BookState>(({book}) => book);
     // const sbid = bid.sort((a,b)=>b[0]-a[0]);
     // const sask = ask.sort((a,b)=>b[0]-a[0]);
     /*const viewDS = [...bid, ...ask].reduce((view, chunk)=>{
@@ -26,7 +20,6 @@ export function Counter() {
     }, {});*/
 
   // const dispatch = useDispatch();
-  // const [incrementAmount, setIncrementAmount] = useState('2');
     const bidView = bid.map(chunk =>{
         return(<tr key={chunk[0]}>
             <td>{chunk[1]}</td>
@@ -35,7 +28,7 @@ export function Counter() {
             <td>{chunk[0]}</td>
         </tr>)
     });
-    const askView = bid.map(chunk =>{
+    const askView = ask.map(chunk =>{
         return(<tr key={chunk[0]}>
             <td>{chunk[0]}</td>
             <td>{Math.abs(chunk[2])* chunk[1]}</td>
