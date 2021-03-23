@@ -12,6 +12,7 @@ interface BookSlice extends SliceCaseReducers<BookState>{
   createBook: CaseReducer<BookState, PayloadAction<any>>,
   updateBook: CaseReducer<BookState, PayloadAction<Chunk>>
 }
+
 export const bookSlice: OrderBook<BookSlice> = createSlice({
   name: 'book',
   initialState,

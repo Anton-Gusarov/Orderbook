@@ -3,12 +3,13 @@ import {EventChannel, eventChannel, Task} from 'redux-saga'
 import {createBook, symbol as symbolAction, updateBook} from '../../features/book/bookSlice';
 import {BookSnapshot, Chunk, SYMBOLS, wsSubscribeParams} from "./types";
 
-type SubPayload = {
-    event:any
-} | [
+type dataPayload = [
     subNum: number,
     data: Chunk | BookSnapshot
-]
+];
+type SubPayload = {
+    event: any
+} | dataPayload;
 const defaultParams: wsSubscribeParams = {
     event: 'subscribe',
     channel: 'book',
@@ -46,9 +47,7 @@ function createSocketChannel(socket: WebSocket): EventChannel<SubPayload | Error
         return unsubscribe
     })
 }
-function filterEvents(payload) {
-    return !payload.event;
-}
+
 export default function* saga() {
     let symbol: SYMBOLS = defaultParams.symbol;
     let socket: WebSocket = yield call(createWebSocketConnection);
@@ -59,9 +58,8 @@ export default function* saga() {
         yield take('cp');
         symbol = symbol === SYMBOLS.BTC ? SYMBOLS.LTC : SYMBOLS.BTC;
         yield cancel(wb);
-        socket.close();
         socketChannel.close();
-        socket = yield call(createWebSocketConnection);
+        // socket = yield call(createWebSocketConnection);
         socketChannel = yield call(createSocketChannel, socket);
         socket.send(JSON.stringify({
             ...defaultParams,
@@ -71,35 +69,47 @@ export default function* saga() {
         yield put(symbolAction(symbol))
     }
 }
+
+function* getSnapshot(socketChannel) {
+    let payload = yield take(socketChannel)
+    // yield payload
+    // var payload;
+    for (; payload.event;payload = yield take(socketChannel)) {}
+    return  payload;
+    /*while (var payload = yield take(socketChannel)) {
+        if (!payload.event) {
+            yield payload;
+            break;
+        }
+    }*/
+}
+
 function* watchBooks(socketChannel) {
     // TODO Find out why
     // var bookReceived = false;
     /*Alternative implementation to this line `if (payload[1][0][0]) {` Then need to implement getSnapshot
     * as a sequential call and only then start receiving updates. More preferable*/
-    // yield call(getSnapshot, socket)
-        while (true) {
-            try {
-                // An error from socketChannel will cause the saga jump to the catch block
-                const payload: SubPayload = yield take(socketChannel);
-                if (filterEvents(payload)) {
-                    if (payload[1][0][0]) {
-                        yield put(createBook(payload[1]));
-                        // bookReceived = true;
-                    } else {
-                        yield put(updateBook(payload[1]))
-                    }
-                }
-            } catch (err) {
-                console.error('socket error:', err)
-                // socketChannel is still open in catch block
-                // if we want end the socketChannel, we need close it explicitly
-                // socketChannel.close()
-            }
+    const payload: SubPayload = yield getSnapshot(socketChannel);
+    yield put(createBook(payload[1]));
+    while (true) {
+        try {
+            // An error from socketChannel will cause the saga jump to the catch block
+            const payload: SubPayload = yield take(socketChannel);
+            yield put(updateBook(payload[1]))
+        } catch (err) {
+            console.error('socket error:', err)
+            // socketChannel is still open in catch block
+            // if we want end the socketChannel, we need close it explicitly
+            // socketChannel.close()
         }
+    }
 }
+
 async function createWebSocketConnection() {
     const ws = new WebSocket('wss://api-pub.bitfinex.com/ws/2');
-    return await new Promise((res)=>{ws.onopen = function () {
-        res(ws)
-    }})
+    return await new Promise((res) => {
+        ws.onopen = function () {
+            res(ws)
+        }
+    })
 }
